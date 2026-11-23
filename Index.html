@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="id">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="Pemutar audio, video YouTube, dan playlist Spotify dengan library link lokal.">
+	<meta name="theme-color" content="#f2f4ed">
+	<title>Ritme — Pemutar Musik dari Link</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f2f4ed;
+			--ink: #17231f;
+			--muted: #65716b;
+			--line: #d7ddd3;
+			--lime: #d8f56a;
+			--coral: #f1785d;
+			--blue: #a9dce6;
+			--mono: "DM Mono", Consolas, monospace;
+			--sans: "Space Grotesk", "Trebuchet MS", sans-serif;
+		}
+
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-width: 320px;
+			min-height: 100vh;
+			color: var(--ink);
+			background-color: var(--paper);
+			background-image: radial-gradient(#cbd3c8 0.7px, transparent 0.7px);
+			background-size: 15px 15px;
+			font-family: var(--sans);
+		}
+		button, input { font: inherit; }
+		button { color: inherit; }
+		.shell { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+		.topbar {
+			height: 82px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			border-bottom: 1px solid var(--line);
+		}
+		.brand { display: flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 700; }
+		.brand-mark {
+			display: grid;
+			width: 31px;
+			aspect-ratio: 1;
+			place-items: center;
+			border: 2px solid var(--ink);
+			border-radius: 50%;
+			background: var(--lime);
+		}
+		.brand-mark::after { width: 7px; aspect-ratio: 1; border-radius: 50%; background: var(--ink); content: ""; }
+		.top-note, .eyebrow, .field-label, .track-kind, .status, .time-row, .volume-label {
+			font-family: var(--mono);
+			font-size: 11px;
+			text-transform: uppercase;
+		}
+		.top-note { color: var(--muted); }
+		main {
+			display: grid;
+			grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+			gap: clamp(42px, 8vw, 104px);
+			align-items: center;
+			min-height: calc(100vh - 83px);
+			padding: 64px 0 82px;
+		}
+		.intro { max-width: 490px; }
+		.eyebrow { display: inline-flex; align-items: center; gap: 9px; margin: 0 0 21px; color: var(--muted); }
+		.eyebrow::before { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); content: ""; }
+		h1 { max-width: 500px; margin: 0; font-size: 64px; line-height: 0.99; }
+		h1 span { display: block; color: #74833a; }
+		.intro-copy { max-width: 390px; margin: 24px 0 37px; color: var(--muted); font-size: 16px; line-height: 1.65; }
+		.url-form { width: 100%; }
+		.field-label { display: block; margin-bottom: 10px; color: var(--ink); }
+		.input-row {
+			display: flex;
+			min-height: 58px;
+			border: 1px solid #aeb8ad;
+			background: #fff;
+			transition: border-color 160ms ease, box-shadow 160ms ease;
+		}
+		.input-row:focus-within { border-color: var(--ink); box-shadow: 4px 4px 0 var(--lime); }
+		.url-input { width: 100%; min-width: 0; padding: 0 15px; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 14px; }
+		.url-input::placeholder { color: #8a948d; }
+		.load-button {
+			flex: 0 0 auto;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 9px;
+			min-width: 126px;
+			margin: 5px;
+			padding: 0 15px;
+			border: 0;
+			background: var(--ink);
+			color: #fff;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 600;
+			transition: background 160ms ease, transform 160ms ease;
+		}
+		.load-button:hover { background: #34463e; }
+		.load-button:active { transform: scale(0.98); }
+		.load-button:disabled { cursor: wait; opacity: 0.7; }
+		.load-button svg, .control-button svg, .volume-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+		.input-help { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+		.player {
+			width: 100%;
+			max-width: 475px;
+			justify-self: end;
+			padding: 17px;
+			border: 1px solid var(--ink);
+			background: #fff;
+			box-shadow: 8px 8px 0 var(--ink);
+			animation: arrive 520ms cubic-bezier(.2,.7,.2,1) both;
+		}
+		.player-top { display: flex; align-items: center; justify-content: space-between; padding: 1px 2px 14px; }
+		.track-kind { color: var(--muted); }
+		.live-indicator { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+		.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #9da69f; }
+		.player.is-playing .live-dot { background: #77a72e; box-shadow: 0 0 0 3px #dff0c6; animation: pulse 1.5s ease-in-out infinite; }
+		.artwork {
+			position: relative;
+			display: grid;
+			width: 100%;
+			aspect-ratio: 1.13 / 1;
+			overflow: hidden;
+			place-items: center;
+			background: var(--blue);
+			isolation: isolate;
+		}
+		.artwork::before {
+			position: absolute;
+			z-index: -1;
+			width: 78%;
+			aspect-ratio: 1;
+			border: 1px solid rgba(23, 35, 31, 0.28);
+			border-radius: 50%;
+			box-shadow: 0 0 0 20px rgba(23, 35, 31, 0.04), 0 0 0 42px rgba(23, 35, 31, 0.04), 0 0 0 64px rgba(23, 35, 31, 0.04);
+			content: "";
+		}
+		.artwork::after { position: absolute; inset: 0; background: linear-gradient(135deg, transparent 49.8%, rgba(23, 35, 31, .12) 50%, transparent 50.3%); content: ""; pointer-events: none; }
+		.record {
+			position: relative;
+			display: grid;
+			width: 48%;
+			aspect-ratio: 1;
+			place-items: center;
+			border: 1px solid rgba(255,255,255,.25);
+			border-radius: 50%;
+			background: repeating-radial-gradient(circle, #26352e 0 2px, #1d2924 3px 5px);
+			box-shadow: 8px 11px 22px rgba(23, 35, 31, .2);
+			animation: spin 8s linear infinite paused;
+		}
+		.is-playing .record { animation-play-state: running; }
+		.record-label { display: grid; width: 34%; aspect-ratio: 1; place-items: center; border-radius: 50%; background: var(--coral); color: var(--ink); font-family: var(--mono); font-size: 10px; font-weight: 500; }
+		.art-tag { position: absolute; right: 15px; bottom: 14px; z-index: 1; padding: 7px 9px; background: var(--lime); font-family: var(--mono); font-size: 10px; }
+		.track-info { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 21px 2px 16px; }
+		.track-title { overflow: hidden; margin: 0; font-size: 21px; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+		.track-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+		.track-number { flex: 0 0 auto; color: #8a948d; font-family: var(--mono); font-size: 11px; }
+		.seek-wrap { padding: 0 2px; }
+		input[type="range"] { display: block; width: 100%; height: 18px; margin: 0; appearance: none; background: transparent; cursor: pointer; }
+		input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(to right, var(--ink) var(--range-progress, 0%), #dfe4dc var(--range-progress, 0%)); }
+		input[type="range"]::-moz-range-track { height: 4px; background: #dfe4dc; }
+		input[type="range"]::-moz-range-progress { height: 4px; background: var(--ink); }
+		input[type="range"]::-webkit-slider-thumb { width: 13px; height: 13px; margin-top: -4.5px; appearance: none; border: 2px solid #fff; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+		input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+		input[type="range"]:focus-visible { outline: 2px solid #74833a; outline-offset: 4px; }
+		.time-row { display: flex; justify-content: space-between; padding-top: 5px; color: var(--muted); font-size: 10px; }
+		.controls { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 19px 0 17px; }
+		.control-button { display: grid; width: 42px; aspect-ratio: 1; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: background 150ms ease, transform 150ms ease; }
+		.control-button:hover { background: #edf0e9; }
+		.control-button:active { transform: scale(.94); }
+		.control-button:disabled { color: #aab2ac; cursor: not-allowed; }
+		.control-button.primary { width: 56px; background: var(--lime); }
+		.control-button.primary:hover { background: #c9eb4f; }
+		.control-button.primary svg { width: 23px; height: 23px; }
+		.volume-row { display: flex; align-items: center; gap: 11px; padding: 12px 2px 2px; border-top: 1px solid #e8ebe5; }
+		.volume-icon { display: grid; color: var(--muted); }
+		.volume-row input[type="range"] { max-width: 110px; }
+		.playlist { margin-top: 17px; padding-top: 15px; border-top: 1px solid #e8ebe5; }
+		.playlist-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+		.playlist-heading h3 { margin: 0; font-family: var(--mono); font-size: 11px; font-weight: 400; text-transform: uppercase; }
+		.playlist-count { margin-left: 5px; color: var(--muted); }
+		.clear-playlist { display: grid; width: 30px; aspect-ratio: 1; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+		.clear-playlist:hover { background: #edf0e9; color: var(--ink); }
+		.clear-playlist:disabled { cursor: not-allowed; opacity: .4; }
+		.clear-playlist svg, .remove-track svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+		.playlist-list { max-height: 210px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+		.playlist-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; border-top: 1px solid #edf0e9; }
+		.playlist-item { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; min-height: 43px; padding: 5px 8px 5px 4px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+		.playlist-item:hover, .playlist-item[aria-current="true"] { background: #f1f5e7; }
+		.playlist-number { color: var(--muted); font-family: var(--mono); font-size: 10px; }
+		.playlist-name { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+		.playlist-item[aria-current="true"] .playlist-name { font-weight: 600; }
+		.remove-track { display: grid; width: 28px; aspect-ratio: 1; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+		.remove-track:hover { background: #f8e6e1; color: #b13d2b; }
+		.playlist-empty { padding: 10px 4px; color: var(--muted); font-size: 12px; }
+		.provider-embed { display: none; margin-bottom: 18px; overflow: hidden; background: #10110f; }
+		.provider-embed:not([hidden]) { display: block; }
+		.provider-embed iframe { display: block; width: 100%; height: 352px; border: 0; }
+		.provider-embed[data-provider="youtube"] iframe { height: auto; aspect-ratio: 16 / 9; }
+		.player.provider-mode .artwork, .player.provider-mode .seek-wrap, .player.provider-mode #restart-button,
+		.player.provider-mode #toggle-button, .player.provider-mode #mute-button, .player.provider-mode #download-button,
+		.player.provider-mode .volume-row { display: none; }
+		.player.provider-mode .controls { justify-content: space-between; padding-top: 12px; border-top: 1px solid #e8ebe5; }
+		.library-note { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+		.status { min-height: 17px; margin: 12px 2px 0; color: var(--muted); font-size: 10px; line-height: 1.5; text-transform: none; }
+		.status.error { color: #b13d2b; }
+		.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+		@keyframes spin { to { transform: rotate(360deg); } }
+		@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(119,167,46,.13); } }
+		@keyframes arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+		@media (max-width: 1000px) {
+			h1 { font-size: 52px; }
+		}
+		@media (max-width: 760px) {
+			.shell { width: min(560px, calc(100% - 36px)); }
+			.topbar { height: 68px; }
+			.top-note { font-size: 9px; }
+			main { grid-template-columns: 1fr; gap: 38px; min-height: auto; padding: 45px 0 56px; }
+			h1 { max-width: 480px; font-size: 60px; }
+			.intro-copy { margin: 17px 0 27px; font-size: 15px; }
+			.player { justify-self: center; max-width: 475px; box-shadow: 6px 6px 0 var(--ink); }
+			.artwork { aspect-ratio: 1.22 / 1; }
+		}
+		@media (max-width: 420px) {
+			.shell { width: calc(100% - 28px); }
+			.top-note { max-width: 120px; text-align: right; line-height: 1.5; }
+			.input-row { min-height: 54px; }
+			.url-input { padding: 0 10px; font-size: 12px; }
+			.load-button { min-width: 53px; padding: 0 12px; }
+			.load-button .button-text { display: none; }
+			.player { padding: 12px; }
+			.controls { gap: 13px; }
+			.track-title { font-size: 19px; }
+			h1 { font-size: 48px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<header class="topbar">
+			<a class="brand" href="#" aria-label="Ritme, beranda"><span class="brand-mark" aria-hidden="true"></span><span>ritme</span></a>
+			<span class="top-note">PEMUTAR AUDIO BERBASIS LINK</span>
+		</header>
+		<main>
+			<section class="intro" aria-labelledby="page-title">
+				<p class="eyebrow">RUANG DENGAR PRIBADI</p>
+				<h1 id="page-title">Putar musik.<span>Pakai link.</span></h1>
+				<p class="intro-copy">Tambahkan audio, video YouTube, atau playlist Spotify. Link tersimpan di library browser ini.</p>
+				<form class="url-form" id="url-form">
+					<label class="field-label" for="audio-url">LINK AUDIO / YOUTUBE / SPOTIFY</label>
+					<div class="input-row">
+						<input class="url-input" id="audio-url" name="audio-url" type="url" inputmode="url" placeholder="Tempel link audio, YouTube, atau Spotify" autocomplete="url" required aria-describedby="url-help player-status">
+						<button class="load-button" id="load-button" type="submit" aria-label="Tambahkan ke playlist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="button-text">Tambah</span></button>
+					</div>
+					<p class="input-help" id="url-help">YouTube dan Spotify diputar melalui embed resmi. Unduhan hanya tersedia untuk link audio langsung.</p>
+				</form>
+			</section>
+			<section class="player" id="player" aria-label="Pemutar musik">
+				<div class="player-top"><span class="track-kind">NOW PLAYING</span><span class="live-indicator"><span class="live-dot" aria-hidden="true"></span><span id="playback-state">SIAP</span></span></div>
+				<div class="artwork" role="img" aria-label="Ilustrasi piringan hitam berputar"><div class="record" aria-hidden="true"><span class="record-label">RITME<br>001</span></div><span class="art-tag">SIDE A / 01</span></div>
+				<div class="provider-embed" id="provider-embed" hidden><iframe id="provider-frame" title="Pemutar dari layanan musik" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe></div>
+				<div class="track-info">
+					<div style="min-width:0"><h2 class="track-title" id="track-title">Belum ada lagu</h2><p class="track-subtitle" id="track-subtitle">Masukkan link audio untuk mulai</p></div>
+					<span class="track-number">01</span>
+				</div>
+				<div class="seek-wrap">
+					<label class="sr-only" for="seek">Posisi lagu</label>
+					<input id="seek" type="range" min="0" max="100" value="0" aria-label="Posisi lagu" disabled>
+					<div class="time-row"><span id="current-time">0:00</span><span id="duration">0:00</span></div>
+				</div>
+				<div class="controls">
+					<button class="control-button" id="restart-button" type="button" aria-label="Mulai lagi dari awal" title="Mulai lagi dari awal" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.3 5.7M4 5v6h6"/><path d="M12 8v4l2.5 1.5"/></svg></button>
+					<button class="control-button" id="previous-button" type="button" aria-label="Lagu sebelumnya" title="Lagu sebelumnya" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 6l-9 6 9 6z" fill="currentColor" stroke="none"/></svg></button>
+					<button class="control-button primary" id="toggle-button" type="button" aria-label="Putar" title="Putar" disabled><svg id="toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 9 6-9 6z" fill="currentColor" stroke="none"/></svg></button>
+					<button class="control-button" id="next-button" type="button" aria-label="Lagu berikutnya" title="Lagu berikutnya" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M6 6l9 6-9 6z" fill="currentColor" stroke="none"/></svg></button>
+					<button class="control-button" id="mute-button" type="button" aria-label="Bisukan suara" title="Bisukan suara"><svg id="volume-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+					<button class="control-button" id="download-button" type="button" aria-label="Unduh file audio" title="Unduh file audio" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button>
+				</div>
+				<div class="volume-row"><span class="volume-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a4 4 0 0 1 0 6"/></svg></span><label class="sr-only" for="volume">Volume</label><input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume"><span class="volume-label">VOL</span></div>
+				<div class="playlist" aria-label="Library lokal">
+					<div class="playlist-heading"><h3>Library lokal <span class="playlist-count" id="playlist-count">0</span></h3><button class="clear-playlist" id="clear-playlist" type="button" aria-label="Hapus semua link" title="Hapus semua link" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg></button></div>
+					<ol class="playlist-list" id="playlist-list" aria-label="Daftar lagu"><li class="playlist-empty">Playlist masih kosong.</li></ol>
+					<p class="library-note">Link disimpan di browser dan perangkat ini saja. File lagu tidak disalin.</p>
+				</div>
+				<p class="status" id="player-status" role="status" aria-live="polite">Tempel link audio untuk mulai mendengarkan.</p>
+			</section>
+		</main>
+	</div>
+	<audio id="audio" preload="metadata"></audio>
+	<script>
+		const audio = document.querySelector("#audio");
+		const form = document.querySelector("#url-form");
+		const urlInput = document.querySelector("#audio-url");
+		const player = document.querySelector("#player");
+		const title = document.querySelector("#track-title");
+		const subtitle = document.querySelector("#track-subtitle");
+		const status = document.querySelector("#player-status");
+		const playbackState = document.querySelector("#playback-state");
+		const toggleButton = document.querySelector("#toggle-button");
+		const toggleIcon = document.querySelector("#toggle-icon");
+		const restartButton = document.querySelector("#restart-button");
+		const previousButton = document.querySelector("#previous-button");
+		const nextButton = document.querySelector("#next-button");
+		const muteButton = document.querySelector("#mute-button");
+		const downloadButton = document.querySelector("#download-button");
+		const volumeIcon = document.querySelector("#volume-icon");
+		const seek = document.querySelector("#seek");
+		const volume = document.querySelector("#volume");
+		const currentTime = document.querySelector("#current-time");
+		const duration = document.querySelector("#duration");
+		const playlistList = document.querySelector("#playlist-list");
+		const playlistCount = document.querySelector("#playlist-count");
+		const clearPlaylistButton = document.querySelector("#clear-playlist");
+		const providerEmbed = document.querySelector("#provider-embed");
+		const providerFrame = document.querySelector("#provider-frame");
+		const playlist = [];
+		const libraryKey = "ritme-library-v1";
+		let currentIndex = -1;
+		let playRequestId = 0;
+
+		const playMarkup = '<path d="m9 6 9 6-9 6z" fill="currentColor" stroke="none"/>';
+		const pauseMarkup = '<path d="M8 6h3v12H8zM15 6h3v12h-3z" fill="currentColor" stroke="none"/>';
+
+		function setStatus(message, isError = false) {
+			status.textContent = message;
+			status.classList.toggle("error", isError);
+		}
+
+		function formatTime(seconds) {
+			if (!Number.isFinite(seconds)) return "0:00";
+			const hours = Math.floor(seconds / 3600);
+			const minutes = Math.floor(seconds / 60) % 60;
+			const remainder = Math.floor(seconds % 60).toString().padStart(2, "0");
+			if (hours > 0) return `${hours}:${String(minutes).padStart(2, "0")}:${remainder}`;
+			return `${Math.floor(seconds / 60)}:${remainder}`;
+		}
+
+		function setPlaying(isPlaying) {
+			player.classList.toggle("is-playing", isPlaying);
+			toggleButton.setAttribute("aria-label", isPlaying ? "Jeda" : "Putar");
+			toggleButton.title = isPlaying ? "Jeda" : "Putar";
+			toggleIcon.innerHTML = isPlaying ? pauseMarkup : playMarkup;
+			playbackState.textContent = isPlaying ? "BERPUTAR" : "DIJEDA";
+		}
+
+		function updateRange(input, progress) {
+			input.style.setProperty("--range-progress", `${progress}%`);
+		}
+
+		function getTrackInfo(value) {
+			const url = new URL(value);
+			const host = url.hostname.toLowerCase().replace(/^www\./, "");
+			const isYouTube = host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com");
+
+			if (isYouTube) {
+				const pathParts = url.pathname.split("/").filter(Boolean);
+				const videoId = host === "youtu.be"
+					? pathParts[0]
+					: url.searchParams.get("v") || (["embed", "shorts", "live"].includes(pathParts[0]) ? pathParts[1] : "");
+				const listId = url.searchParams.get("list");
+				if (videoId && !/^[\w-]{6,}$/.test(videoId)) throw new Error("ID video YouTube tidak valid.");
+				if (!videoId && !listId) throw new Error("Link YouTube harus mengarah ke video atau playlist.");
+				const embedUrl = videoId
+					? `https://www.youtube-nocookie.com/embed/${videoId}${listId ? `?list=${encodeURIComponent(listId)}` : "?playsinline=1"}`
+					: `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(listId)}`;
+				return { url: url.href, kind: "youtube", title: videoId ? `YouTube · ${videoId}` : `YouTube playlist · ${listId}`, embedUrl };
+			}
+
+			if (host === "open.spotify.com" || host === "spotify.com") {
+				const parts = url.pathname.split("/").filter(Boolean);
+				const typeIndex = parts.findIndex((part) => ["playlist", "track", "album", "episode", "show", "artist"].includes(part));
+				const type = parts[typeIndex];
+				const id = parts[typeIndex + 1];
+				if (!type || !id || !/^[A-Za-z0-9]+$/.test(id)) throw new Error("Link Spotify harus mengarah ke playlist, album, lagu, atau podcast.");
+				return { url: url.href, kind: "spotify", title: `Spotify ${type} · ${id.slice(0, 8)}`, embedUrl: `https://open.spotify.com/embed/${type}/${id}?utm_source=generator` };
+			}
+
+			const lastPart = url.pathname.split("/").filter(Boolean).pop();
+			if (!lastPart) return { url: url.href, kind: "audio", title: "Audio dari link" };
+			try {
+				return { url: url.href, kind: "audio", title: decodeURIComponent(lastPart).replace(/\.[^.]+$/, "") || "Audio dari link" };
+			} catch {
+				return { url: url.href, kind: "audio", title: lastPart.replace(/\.[^.]+$/, "") || "Audio dari link" };
+			}
+		}
+
+		function saveLibrary() {
+			try {
+				localStorage.setItem(libraryKey, JSON.stringify(playlist.map((track) => track.url)));
+				return true;
+			} catch {
+				return false;
+			}
+		}
+
+		function restoreLibrary() {
+			try {
+				const savedUrls = JSON.parse(localStorage.getItem(libraryKey) || "[]");
+				if (!Array.isArray(savedUrls)) return;
+				for (const value of savedUrls.slice(0, 300)) {
+					if (typeof value !== "string") continue;
+					try {
+						const url = new URL(value);
+						if (["http:", "https:"].includes(url.protocol)) playlist.push(getTrackInfo(url.href));
+					} catch {
+						continue;
+					}
+				}
+			} catch {
+				setStatus("Library browser tidak tersedia. Link hanya tersimpan selama halaman ini terbuka.", true);
+			}
+		}
+
+		function updateNavigation() {
+			restartButton.disabled = currentIndex < 0;
+			previousButton.disabled = currentIndex < 0 || (currentIndex === 0 && playlist[0]?.kind !== "audio");
+			nextButton.disabled = currentIndex < 0 || currentIndex >= playlist.length - 1;
+		}
+
+		function renderPlaylist() {
+			playlistCount.textContent = String(playlist.length);
+			clearPlaylistButton.disabled = playlist.length === 0;
+			playlistList.replaceChildren();
+
+			if (playlist.length === 0) {
+				const emptyItem = document.createElement("li");
+				emptyItem.className = "playlist-empty";
+				emptyItem.textContent = "Playlist masih kosong.";
+				playlistList.append(emptyItem);
+				updateNavigation();
+				return;
+			}
+
+			playlist.forEach((track, index) => {
+				const row = document.createElement("li");
+				row.className = "playlist-row";
+
+				const selectButton = document.createElement("button");
+				selectButton.className = "playlist-item";
+				selectButton.type = "button";
+				selectButton.setAttribute("aria-current", String(index === currentIndex));
+				selectButton.setAttribute("aria-label", `Putar ${track.title}`);
+
+				const number = document.createElement("span");
+				number.className = "playlist-number";
+				number.textContent = String(index + 1).padStart(2, "0");
+				const name = document.createElement("span");
+				name.className = "playlist-name";
+				name.textContent = track.title;
+				selectButton.append(number, name);
+				selectButton.addEventListener("click", () => {
+					if (index === currentIndex) {
+						if (audio.paused) audio.play().catch(() => setStatus("Audio belum bisa diputar.", true));
+					} else {
+						playTrack(index);
+					}
+				});
+
+				const removeButton = document.createElement("button");
+				removeButton.className = "remove-track";
+				removeButton.type = "button";
+				removeButton.setAttribute("aria-label", `Hapus ${track.title} dari playlist`);
+				removeButton.title = `Hapus ${track.title}`;
+				removeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+				removeButton.addEventListener("click", () => removeTrack(index));
+				row.append(selectButton, removeButton);
+				playlistList.append(row);
+			});
+
+			updateNavigation();
+		}
+
+		async function playTrack(index) {
+			if (index < 0 || index >= playlist.length) return;
+			const requestId = ++playRequestId;
+			currentIndex = index;
+			const track = playlist[index];
+
+			audio.pause();
+			title.textContent = track.title;
+			currentTime.textContent = "0:00";
+			duration.textContent = "0:00";
+			seek.value = "0";
+			setPlaying(false);
+			renderPlaylist();
+
+			if (track.kind !== "audio") {
+				audio.removeAttribute("src");
+				audio.load();
+				providerEmbed.dataset.provider = track.kind;
+				providerEmbed.hidden = false;
+				providerFrame.title = `Pemutar ${track.kind === "youtube" ? "YouTube" : "Spotify"}: ${track.title}`;
+				providerFrame.src = track.embedUrl;
+				player.classList.add("provider-mode");
+				subtitle.textContent = track.kind === "spotify" ? "Diputar melalui Spotify" : "Diputar melalui YouTube";
+				playbackState.textContent = "EMBED";
+				seek.disabled = true;
+				toggleButton.disabled = true;
+				downloadButton.disabled = true;
+				setStatus("Gunakan kontrol di dalam pemutar resmi untuk memutar dan melihat durasi.");
+				return;
+			}
+
+			providerFrame.src = "about:blank";
+			providerEmbed.hidden = true;
+			delete providerEmbed.dataset.provider;
+			player.classList.remove("provider-mode");
+			downloadButton.disabled = false;
+			audio.src = track.url;
+			subtitle.textContent = "Memuat audio dari link";
+			playbackState.textContent = "MEMUAT";
+			seek.disabled = true;
+			toggleButton.disabled = true;
+			setStatus(`Memuat lagu ${index + 1} dari ${playlist.length}...`);
+
+			try {
+				await audio.play();
+			} catch (error) {
+				if (requestId !== playRequestId) return;
+				if (error.name === "NotAllowedError") {
+					setStatus("Audio siap. Tekan tombol putar untuk mulai.");
+					toggleButton.disabled = false;
+					subtitle.textContent = "Siap diputar";
+					playbackState.textContent = "SIAP";
+				} else {
+					setStatus("Audio tidak bisa diputar. Periksa link atau format file-nya.", true);
+					playbackState.textContent = "GAGAL";
+				}
+			}
+		}
+
+		function removeTrack(index) {
+			const removedCurrentTrack = index === currentIndex;
+			playlist.splice(index, 1);
+			saveLibrary();
+
+			if (playlist.length === 0) {
+				clearPlaylist();
+			} else if (removedCurrentTrack) {
+				currentIndex = -1;
+				playTrack(Math.min(index, playlist.length - 1));
+			} else {
+				if (index < currentIndex) currentIndex -= 1;
+				renderPlaylist();
+			}
+		}
+
+		function clearPlaylist() {
+			playRequestId += 1;
+			audio.pause();
+			audio.removeAttribute("src");
+			audio.load();
+			providerFrame.src = "about:blank";
+			providerEmbed.hidden = true;
+			delete providerEmbed.dataset.provider;
+			player.classList.remove("provider-mode");
+			playlist.length = 0;
+			saveLibrary();
+			currentIndex = -1;
+			setPlaying(false);
+			title.textContent = "Belum ada lagu";
+			subtitle.textContent = "Tambahkan link audio untuk mulai";
+			playbackState.textContent = "SIAP";
+			currentTime.textContent = "0:00";
+			duration.textContent = "0:00";
+			seek.value = "0";
+			seek.disabled = true;
+			toggleButton.disabled = true;
+			downloadButton.disabled = true;
+			renderPlaylist();
+			setStatus("Tambahkan link audio untuk mulai mendengarkan.");
+		}
+
+		form.addEventListener("submit", (event) => {
+			event.preventDefault();
+			let track;
+			try {
+				const url = new URL(urlInput.value.trim());
+				if (!["http:", "https:"].includes(url.protocol)) throw new Error("protocol");
+				track = getTrackInfo(url.href);
+			} catch (error) {
+				setStatus(error.message && error.message !== "protocol" ? error.message : "Masukkan URL http:// atau https:// yang valid.", true);
+				urlInput.focus();
+				return;
+			}
+
+			playlist.push(track);
+			const saved = saveLibrary();
+			urlInput.value = "";
+			renderPlaylist();
+			if (playlist.length === 1) playTrack(0);
+		else setStatus(saved ? `“${track.title}” ditambahkan ke library.` : "Link ditambahkan, tetapi browser tidak dapat menyimpannya secara permanen.");
+		});
+
+		clearPlaylistButton.addEventListener("click", clearPlaylist);
+		previousButton.addEventListener("click", () => {
+			if (currentIndex < 0) return;
+			if (currentIndex === 0) {
+				if (playlist[0].kind === "audio") audio.currentTime = 0;
+				return;
+			}
+			if (playlist[currentIndex].kind === "audio" && audio.currentTime > 3) audio.currentTime = 0;
+			else playTrack(currentIndex - 1);
+		});
+		nextButton.addEventListener("click", () => playTrack(currentIndex + 1));
+
+		toggleButton.addEventListener("click", async () => {
+			if (audio.paused) {
+				try {
+					await audio.play();
+				} catch {
+					setStatus("Audio belum bisa diputar. Pastikan link mengarah ke file audio.", true);
+				}
+			} else {
+				audio.pause();
+			}
+		});
+		downloadButton.addEventListener("click", () => {
+			const track = playlist[currentIndex];
+			if (!track || track.kind !== "audio") return;
+			const downloadLink = document.createElement("a");
+			downloadLink.href = track.url;
+			downloadLink.download = "";
+			downloadLink.target = "_blank";
+			downloadLink.rel = "noopener";
+			downloadLink.click();
+			setStatus("Permintaan unduhan dikirim. Dukungan unduhan bergantung pada server sumber audio.");
+		});
+
+		restartButton.addEventListener("click", () => {
+			audio.currentTime = 0;
+			if (audio.paused) audio.play().catch(() => {});
+		});
+
+		audio.addEventListener("play", () => {
+			setPlaying(true);
+			toggleButton.disabled = false;
+			restartButton.disabled = false;
+			subtitle.textContent = "Sedang diputar";
+			setStatus("Lagu sedang diputar.");
+		});
+		audio.addEventListener("pause", () => {
+			if (audio.ended || !audio.paused) return;
+			setPlaying(false);
+			if (audio.src) {
+				subtitle.textContent = "Pemutaran dijeda";
+				playbackState.textContent = "DIJEDA";
+				setStatus("Pemutaran dijeda.");
+			}
+		});
+		audio.addEventListener("loadedmetadata", () => {
+			duration.textContent = formatTime(audio.duration);
+			seek.disabled = !Number.isFinite(audio.duration);
+			toggleButton.disabled = false;
+			restartButton.disabled = false;
+			loadButton.disabled = false;
+			if (audio.paused) {
+				playbackState.textContent = "SIAP";
+				subtitle.textContent = "Siap diputar";
+				setStatus("Audio siap. Tekan tombol putar untuk mulai.");
+			}
+		});
+		audio.addEventListener("timeupdate", () => {
+			currentTime.textContent = formatTime(audio.currentTime);
+			if (Number.isFinite(audio.duration) && audio.duration > 0) {
+				const progress = (audio.currentTime / audio.duration) * 100;
+				seek.value = String(progress);
+				updateRange(seek, progress);
+			}
+		});
+		audio.addEventListener("ended", () => {
+			setPlaying(false);
+			if (currentIndex < playlist.length - 1) {
+				playTrack(currentIndex + 1);
+				return;
+			}
+			playbackState.textContent = "SELESAI";
+			subtitle.textContent = "Lagu selesai";
+			setStatus("Lagu selesai diputar.");
+		});
+		audio.addEventListener("error", () => {
+			if (!audio.hasAttribute("src") || playlist[currentIndex]?.kind !== "audio") return;
+			setPlaying(false);
+			playbackState.textContent = "GAGAL";
+			subtitle.textContent = "Link audio tidak tersedia";
+			toggleButton.disabled = true;
+			restartButton.disabled = true;
+			setStatus("Tidak dapat memuat audio. Pastikan link publik dan mengarah langsung ke file audio.", true);
+		});
+		seek.addEventListener("input", () => {
+			if (!Number.isFinite(audio.duration)) return;
+			audio.currentTime = (Number(seek.value) / 100) * audio.duration;
+			updateRange(seek, Number(seek.value));
+		});
+		volume.addEventListener("input", () => {
+			audio.volume = Number(volume.value);
+			audio.muted = audio.volume === 0;
+			updateRange(volume, Number(volume.value) * 100);
+			muteButton.setAttribute("aria-label", audio.muted ? "Nyalakan suara" : "Bisukan suara");
+			volumeIcon.innerHTML = audio.muted
+				? '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/>'
+				: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a4 4 0 0 1 0 6"/>';
+		});
+		muteButton.addEventListener("click", () => {
+			audio.muted = !audio.muted;
+			muteButton.setAttribute("aria-label", audio.muted ? "Nyalakan suara" : "Bisukan suara");
+			volumeIcon.innerHTML = audio.muted
+				? '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/>'
+				: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a4 4 0 0 1 0 6"/>';
+		});
+		audio.volume = Number(volume.value);
+		updateRange(volume, Number(volume.value) * 100);
+		restoreLibrary();
+		renderPlaylist();
+		if (playlist.length > 0) setStatus(`${playlist.length} link tersimpan. Pilih lagu dari library untuk memutar.`);
+	</script>
+</body>
+</html>
